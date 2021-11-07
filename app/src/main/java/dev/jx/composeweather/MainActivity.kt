@@ -4,41 +4,69 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.window.PopupProperties
+import androidx.lifecycle.ViewModelProvider
+import dagger.hilt.android.AndroidEntryPoint
 import dev.jx.composeweather.data.remote.model.googleplaces.PlaceAutocompletePrediction
 import dev.jx.composeweather.data.remote.model.openweather.WeatherDaily
 import dev.jx.composeweather.data.remote.model.openweather.WeatherHourly
 import dev.jx.composeweather.ui.theme.BlueLight
 import dev.jx.composeweather.ui.theme.ComposeWeatherTheme
 
+private lateinit var viewModel: MainActivityViewModel
+
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        viewModel = ViewModelProvider(this).get(MainActivityViewModel::class.java)
+
         setContent {
             ComposeWeatherTheme {
+
+                val localFocusManager = LocalFocusManager.current
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                localFocusManager.clearFocus()
+                            })
+                        }
                 ) {
                     SearchBar()
                     WeatherCard()
@@ -52,10 +80,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SearchBar() {
-    var query by remember { mutableStateOf("") }
-    var predictions by remember { mutableStateOf(listOf<PlaceAutocompletePrediction>()) }
+    val query = viewModel.query
+    val predictions = viewModel.predictions.value
+    var showMenu = predictions.isNotEmpty() && query.value.isNotEmpty()
 
-    var showMenu by remember { mutableStateOf(false) }
+    val keyboardControl = LocalFocusManager.current
     var textFieldSize by remember { mutableStateOf(Size.Zero) }
 
     Surface(
@@ -70,25 +99,48 @@ fun SearchBar() {
             }
     ) {
         TextField(
-            value = query,
+            value = query.value,
             label = { Text(text = "City") },
-            maxLines = 1,
+            singleLine = true,
             onValueChange = {
-                query = it
-                // Implement google places auto complete service
+                query.value = it
+                viewModel.getPlaces(query.value)
             },
             leadingIcon = { Icon(imageVector = Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.value.isNotEmpty()) {
+                    Icon(Icons.Filled.Clear,
+                        contentDescription = "Clear text",
+                        modifier = Modifier.clickable {
+                            query.value = ""
+                        }
+                    )
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    viewModel.getPlaces(query.value)
+                    query.value = ""
+                    keyboardControl.clearFocus()
+                }
+            ),
             colors = TextFieldDefaults
                 .textFieldColors(
                     textColor = MaterialTheme.colors.secondary,
                     backgroundColor = MaterialTheme.colors.surface
-                )
+                ),
+            modifier = Modifier.onFocusChanged { query.value = "" }
         )
         DropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false },
             modifier = Modifier
-                .width(with(LocalDensity.current) { textFieldSize.width.toDp() })
+                .width(with(LocalDensity.current) { textFieldSize.width.toDp() }),
+            properties = PopupProperties(focusable = false)
         ) {
             QueryAutoComplete(predictions = predictions)
         }
@@ -98,8 +150,12 @@ fun SearchBar() {
 @Composable
 fun QueryAutoComplete(predictions: List<PlaceAutocompletePrediction>) {
     predictions.forEach { prediction ->
-        DropdownMenuItem(onClick = { /*TODO*/ }) {
-            Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+        DropdownMenuItem(onClick = { }) {
+            Icon(
+                imageVector = Icons.Filled.LocationOn,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 8.dp)
+            )
             Text(text = prediction.description)
         }
     }
