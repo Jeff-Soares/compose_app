@@ -1,8 +1,13 @@
 package dev.jx.composeweather
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -36,15 +41,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.PopupProperties
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.gms.location.LocationServices
+import com.google.android.libraries.places.api.model.AutocompletePrediction
 import dagger.hilt.android.AndroidEntryPoint
-import dev.jx.composeweather.data.remote.model.googleplaces.PlaceAutocompletePrediction
 import dev.jx.composeweather.data.remote.model.openweather.WeatherDaily
 import dev.jx.composeweather.data.remote.model.openweather.WeatherHourly
 import dev.jx.composeweather.ui.theme.BlueLight
 import dev.jx.composeweather.ui.theme.ComposeWeatherTheme
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.math.roundToInt
 
 private lateinit var viewModel: MainActivityViewModel
+private lateinit var permissionsLauncher: ActivityResultLauncher<String>
+private lateinit var geoCoder: Geocoder
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -52,6 +64,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         viewModel = ViewModelProvider(this).get(MainActivityViewModel::class.java)
+
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        geoCoder = Geocoder(this, Locale.getDefault())
+
+        permissionsLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                if (Geocoder.isPresent()) {
+                    val city = geoCoder.getFromLocation(location.latitude, location.longitude, 1)
+                        .firstOrNull()?.locality
+                    if (city != null) viewModel.getWeatherInfo(city)
+                }
+            }
+        } else {
+            permissionsLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
 
         setContent {
             ComposeWeatherTheme {
@@ -104,7 +136,7 @@ fun SearchBar() {
             singleLine = true,
             onValueChange = {
                 query.value = it
-                viewModel.getPlaces(query.value)
+                viewModel.getPlacesPrediction(query.value)
             },
             leadingIcon = { Icon(imageVector = Icons.Filled.Search, contentDescription = null) },
             trailingIcon = {
@@ -123,7 +155,7 @@ fun SearchBar() {
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    viewModel.getPlaces(query.value)
+                    viewModel.getPlacesPrediction(query.value)
                     query.value = ""
                     keyboardControl.clearFocus()
                 }
@@ -142,27 +174,42 @@ fun SearchBar() {
                 .width(with(LocalDensity.current) { textFieldSize.width.toDp() }),
             properties = PopupProperties(focusable = false)
         ) {
-            QueryAutoComplete(predictions = predictions)
+            QueryAutoComplete(predictions = predictions) { prediction ->
+                viewModel.getWeatherInfo(prediction.getPrimaryText(null).toString())
+                query.value = ""
+                keyboardControl.clearFocus()
+            }
         }
     }
 }
 
 @Composable
-fun QueryAutoComplete(predictions: List<PlaceAutocompletePrediction>) {
+fun QueryAutoComplete(
+    predictions: List<AutocompletePrediction>,
+    itemCallback: (AutocompletePrediction) -> Unit
+) {
     predictions.forEach { prediction ->
-        DropdownMenuItem(onClick = { }) {
+        DropdownMenuItem(onClick = { itemCallback(prediction) }) {
             Icon(
                 imageVector = Icons.Filled.LocationOn,
                 contentDescription = null,
                 modifier = Modifier.padding(end = 8.dp)
             )
-            Text(text = prediction.description)
+            Text(text = prediction.getFullText(null).toString())
         }
     }
 }
 
 @Composable
 fun WeatherCard() {
+    val currentlyWeather = viewModel.currentlyWeather.value
+    val weatherDescription = currentlyWeather.weather.firstOrNull()?.description?.replaceFirstChar {
+        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+    } ?: ""
+    val calendar = Calendar.getInstance()
+    val date = calendar.time
+    val formattedDate = SimpleDateFormat("EE, hh:mm a", Locale.getDefault()).format(date)
+
     Card(
         elevation = 8.dp,
         modifier = Modifier
@@ -174,12 +221,13 @@ fun WeatherCard() {
                 .fillMaxWidth()
                 .padding(24.dp)
         ) {
-            Text(text = "Hong Kong", fontSize = 32.sp)
-            Text(text = "Mon, 11:00 AM, Mostly Sunny")
+            Text(text = currentlyWeather.name, fontSize = 32.sp)
+//            Text(text = "Mon, 11:00 AM, Mostly Sunny")
+            Text(text = "$formattedDate, $weatherDescription")
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "23", fontSize = 80.sp)
+                Text(text = currentlyWeather.main.temp.roundToInt().toString(), fontSize = 80.sp)
                 Text(text = "ºC", fontSize = 48.sp)
                 Spacer(modifier = Modifier.weight(1f))
                 Image(
@@ -194,11 +242,15 @@ fun WeatherCard() {
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_precipitation),
-                    contentDescription = "Precipitation icon",
+                    contentDescription = "Humidity icon",
                     modifier = Modifier.size(16.dp),
                     colorFilter = ColorFilter.tint(MaterialTheme.colors.secondary)
                 )
-                Text(text = "Precipitation", modifier = Modifier.padding(horizontal = 4.dp))
+                Text(
+                    text = "${currentlyWeather.main.humidity}% Humidity", modifier = Modifier
+                        .padding
+                            (horizontal = 4.dp)
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Image(
                     painter = painterResource(id = R.drawable.ic_wind),
@@ -206,7 +258,10 @@ fun WeatherCard() {
                     modifier = Modifier.size(16.dp),
                     colorFilter = ColorFilter.tint(MaterialTheme.colors.secondary)
                 )
-                Text(text = "5 km/h Winds", modifier = Modifier.padding(horizontal = 4.dp))
+                Text(
+                    text = "${(currentlyWeather.wind.speed * 3.6).roundToInt()} km/h Winds",
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
             }
         }
     }
@@ -299,9 +354,16 @@ fun WeatherDailyItem(weather: WeatherDaily) {
 @Composable
 fun WeatherCardPreview() {
     ComposeWeatherTheme {
+        val localFocusManager = LocalFocusManager.current
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        localFocusManager.clearFocus()
+                    })
+                }
         ) {
             SearchBar()
             WeatherCard()

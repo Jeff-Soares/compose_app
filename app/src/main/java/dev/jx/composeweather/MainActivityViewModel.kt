@@ -5,46 +5,79 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.libraries.places.api.model.AutocompletePrediction
+import com.google.android.libraries.places.api.model.AutocompleteSessionToken
+import com.google.android.libraries.places.api.model.TypeFilter
+import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
+import com.google.android.libraries.places.api.net.PlacesClient
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.jx.composeweather.data.remote.GooglePlacesService
 import dev.jx.composeweather.data.remote.OpenWeatherService
-import dev.jx.composeweather.data.remote.model.googleplaces.PlaceAutocompletePrediction
+import dev.jx.composeweather.data.remote.model.openweather.CurrentWeather
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-const val PREDICTION_SERVICE = "Prediction Service"
+const val WEATHER_SERVICE = "Weather Service"
 
 @HiltViewModel
 class MainActivityViewModel @Inject constructor(
     private val openWeatherService: OpenWeatherService,
-    private val googlePlacesService: GooglePlacesService
+    private val placesClient: PlacesClient
 ) : ViewModel() {
 
     val query = mutableStateOf("")
-    val predictions: MutableState<List<PlaceAutocompletePrediction>> = mutableStateOf(listOf())
+    val predictions: MutableState<List<AutocompletePrediction>> = mutableStateOf(listOf())
+    val currentlyWeather: MutableState<CurrentWeather> = mutableStateOf(CurrentWeather.default)
 
-    fun getPlaces(text: String) {
+    private var token: AutocompleteSessionToken? = null
+
+    fun getPlacesPrediction(text: String) {
         if (text.isEmpty()) {
             predictions.value = listOf(); return
         }
+
+        if (token == null) generateNewSessionToken()
+
+        val request = FindAutocompletePredictionsRequest.builder().apply {
+            sessionToken = token
+            typeFilter = TypeFilter.CITIES
+            query = text
+        }.build()
+
+        placesClient.findAutocompletePredictions(request).addOnSuccessListener { response ->
+            predictions.value = response.autocompletePredictions
+        }
+    }
+
+    private fun generateNewSessionToken() {
+        token = AutocompleteSessionToken.newInstance()
+    }
+
+    private fun invalidateToken() {
+        token = null
+    }
+
+    fun getWeatherInfo(cityName: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            predictions.value = try {
-                val response = googlePlacesService.getPlace(text, BuildConfig.GOOGLE_PLACES_API_KEY)
+            currentlyWeather.value = try {
+                val response = openWeatherService.getCurrentlyWeather(
+                    cityName,
+                    BuildConfig.OPEN_WEATHER_API_KEY
+                )
                 if (response.isSuccessful) {
-                    Log.d("TEST", "Result: ${response.body()?.predictions?.first()
-                        ?.description}")
-                    response.body()?.predictions ?: throw Throwable("Body is null")
+                    response.body() ?: throw Throwable("Body is null")
                 } else throw Throwable("Response is not successful")
             } catch (e: Throwable) {
-                Log.e(PREDICTION_SERVICE, e.message.toString())
-                Log.e(PREDICTION_SERVICE, e.stackTraceToString())
-                listOf()
+                Log.e(WEATHER_SERVICE, e.message.toString())
+                CurrentWeather.default
             }
         }
+
+        // Weather Daily
+
+        // Weather
+
+        invalidateToken()
     }
 
 }
