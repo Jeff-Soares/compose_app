@@ -13,6 +13,8 @@ import com.google.android.libraries.places.api.net.PlacesClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.jx.composeweather.data.remote.OpenWeatherService
 import dev.jx.composeweather.data.remote.model.openweather.CurrentWeather
+import dev.jx.composeweather.data.remote.model.openweather.DailyWeather
+import dev.jx.composeweather.data.remote.model.openweather.HourlyWeather
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,6 +30,10 @@ class MainActivityViewModel @Inject constructor(
     val query = mutableStateOf("")
     val predictions: MutableState<List<AutocompletePrediction>> = mutableStateOf(listOf())
     val currentlyWeather: MutableState<CurrentWeather> = mutableStateOf(CurrentWeather.default)
+    val hourlyWeather: MutableState<List<HourlyWeather>> =
+        mutableStateOf(listOf(HourlyWeather.default))
+    val dailyWeather: MutableState<List<DailyWeather>> =
+        mutableStateOf(listOf(DailyWeather.default))
 
     private var token: AutocompleteSessionToken? = null
 
@@ -59,23 +65,33 @@ class MainActivityViewModel @Inject constructor(
 
     fun getWeatherInfo(cityName: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            currentlyWeather.value = try {
+            try {
                 val response = openWeatherService.getCurrentlyWeather(
-                    cityName,
-                    BuildConfig.OPEN_WEATHER_API_KEY
+                    city = cityName,
+                    key = BuildConfig.OPEN_WEATHER_API_KEY
                 )
                 if (response.isSuccessful) {
-                    response.body() ?: throw Throwable("Body is null")
+                    currentlyWeather.value = response.body() ?: throw Throwable("Body is null")
+
+                    val lat = response.body()!!.coord.lat
+                    val lon = response.body()!!.coord.lon
+
+                    val oneCallResponse = openWeatherService.getWeatherOneCall(
+                        lat = lat,
+                        lon = lon,
+                        key = BuildConfig.OPEN_WEATHER_API_KEY
+                    )
+
+                    hourlyWeather.value =
+                        oneCallResponse.body()?.hourly ?: throw Throwable("Body is null")
+                    dailyWeather.value =
+                        oneCallResponse.body()?.daily ?: throw Throwable("Body is null")
+
                 } else throw Throwable("Response is not successful")
             } catch (e: Throwable) {
                 Log.e(WEATHER_SERVICE, e.message.toString())
-                CurrentWeather.default
             }
         }
-
-        // Weather Daily
-
-        // Weather
 
         invalidateToken()
     }

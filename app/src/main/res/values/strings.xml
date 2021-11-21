@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">ComposeWeather</string>
+    <string name="icon_url_2x">https://openweathermap.org/img/wn/%s@2x.png</string>
 </resources>

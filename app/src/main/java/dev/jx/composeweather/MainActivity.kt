@@ -14,10 +14,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -34,6 +36,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,9 +48,10 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.location.LocationServices
 import com.google.android.libraries.places.api.model.AutocompletePrediction
+import com.skydoves.landscapist.glide.GlideImage
 import dagger.hilt.android.AndroidEntryPoint
-import dev.jx.composeweather.data.remote.model.openweather.WeatherDaily
-import dev.jx.composeweather.data.remote.model.openweather.WeatherHourly
+import dev.jx.composeweather.data.remote.model.openweather.DailyWeather
+import dev.jx.composeweather.data.remote.model.openweather.HourlyWeather
 import dev.jx.composeweather.ui.theme.BlueLight
 import dev.jx.composeweather.ui.theme.ComposeWeatherTheme
 import java.text.SimpleDateFormat
@@ -99,11 +103,14 @@ class MainActivity : ComponentActivity() {
                                 localFocusManager.clearFocus()
                             })
                         }
+                        .verticalScroll(rememberScrollState())
                 ) {
                     SearchBar()
                     WeatherCard()
-                    WeatherHourlyCard((1..24).map { WeatherHourly() })
-                    WeatherDailyCard((1..7).map { WeatherDaily() })
+//                    WeatherHourlyCard((1..24).map { HourlyWeather() })
+//                    WeatherDailyCard((1..7).map { DailyWeather() })
+                    WeatherHourlyCard()
+                    WeatherDailyCard()
                 }
             }
         }
@@ -222,16 +229,26 @@ fun WeatherCard() {
                 .padding(24.dp)
         ) {
             Text(text = currentlyWeather.name, fontSize = 32.sp)
-//            Text(text = "Mon, 11:00 AM, Mostly Sunny")
             Text(text = "$formattedDate, $weatherDescription")
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = currentlyWeather.main.temp.roundToInt().toString(), fontSize = 80.sp)
                 Text(text = "ºC", fontSize = 48.sp)
+
                 Spacer(modifier = Modifier.weight(1f))
-                Image(
-                    painter = painterResource(id = R.drawable.cloudy_day_3),
+
+                GlideImage(
+                    imageModel = currentlyWeather.weather.firstOrNull()?.let {
+                        stringResource(R.string.icon_url_2x, it.icon)
+                    },
+                    failure = {
+                        Image(
+                            painter = painterResource(id = R.drawable.cloudy_day_3),
+                            contentDescription = "Weather Condition",
+                            modifier = Modifier.size(132.dp)
+                        )
+                    },
                     contentDescription = "Weather Condition",
                     modifier = Modifier.size(132.dp)
                 )
@@ -241,15 +258,14 @@ fun WeatherCard() {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_precipitation),
+                    painter = painterResource(id = R.drawable.ic_humidity),
                     contentDescription = "Humidity icon",
                     modifier = Modifier.size(16.dp),
                     colorFilter = ColorFilter.tint(MaterialTheme.colors.secondary)
                 )
                 Text(
-                    text = "${currentlyWeather.main.humidity}% Humidity", modifier = Modifier
-                        .padding
-                            (horizontal = 4.dp)
+                    text = "${currentlyWeather.main.humidity}% Humidity",
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Image(
@@ -268,7 +284,9 @@ fun WeatherCard() {
 }
 
 @Composable
-fun WeatherHourlyCard(weathers: List<WeatherHourly>) {
+fun WeatherHourlyCard() {
+    val hourlyWeather = viewModel.hourlyWeather.value
+
     Card(
         elevation = 8.dp,
         modifier = Modifier
@@ -280,9 +298,9 @@ fun WeatherHourlyCard(weathers: List<WeatherHourly>) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            LazyRow {
-                items(items = weathers) { weather ->
-                    WeatherHourlyItem(weather)
+            LazyRow() {
+                itemsIndexed(items = hourlyWeather.take(24)) { index, weather ->
+                    WeatherHourlyItem(weather, index)
                 }
             }
         }
@@ -290,23 +308,29 @@ fun WeatherHourlyCard(weathers: List<WeatherHourly>) {
 }
 
 @Composable
-fun WeatherHourlyItem(weather: WeatherHourly) {
+fun WeatherHourlyItem(weather: HourlyWeather, pos: Int) {
+    val hour = Calendar.getInstance()
+    hour.set(Calendar.HOUR_OF_DAY, pos)
+    val hourFormatted = SimpleDateFormat("h a", Locale.getDefault()).format(hour.time)
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(horizontal = 8.dp)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.ic_condition),
-            contentDescription = null,
+        GlideImage(
+            imageModel = stringResource(R.string.icon_url_2x, weather.weather.first().icon),
+            contentDescription = "Weather Condition",
             modifier = Modifier.size(56.dp)
         )
-        Text(text = "20ºC", modifier = Modifier.padding(vertical = 8.dp))
-        Text(text = "9 AM")
+        Text(text = "${weather.temp.roundToInt()}ºC", modifier = Modifier.padding(vertical = 8.dp))
+        Text(text = hourFormatted)
     }
 }
 
 @Composable
-fun WeatherDailyCard(weathers: List<WeatherDaily>) {
+fun WeatherDailyCard() {
+    val dailyWeather = viewModel.dailyWeather.value
+
     Card(
         elevation = 8.dp,
         modifier = Modifier
@@ -319,9 +343,9 @@ fun WeatherDailyCard(weathers: List<WeatherDaily>) {
                 .fillMaxWidth()
                 .padding(24.dp)
         ) {
-            LazyColumn {
-                items(items = weathers) { weather ->
-                    WeatherDailyItem(weather)
+            LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
+                itemsIndexed(items = dailyWeather) { index, weather ->
+                    WeatherDailyItem(weather, index)
                 }
             }
         }
@@ -329,7 +353,12 @@ fun WeatherDailyCard(weathers: List<WeatherDaily>) {
 }
 
 @Composable
-fun WeatherDailyItem(weather: WeatherDaily) {
+fun WeatherDailyItem(weather: DailyWeather, pos: Int) {
+    val calendar = Calendar.getInstance(Locale.getDefault())
+    calendar.timeInMillis = weather.dt * 1000
+
+    val formattedDate = SimpleDateFormat("EEEE", Locale.getDefault()).format(calendar.time)
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -337,16 +366,21 @@ fun WeatherDailyItem(weather: WeatherDaily) {
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
-        Text(text = "Today", modifier = Modifier.padding(vertical = 8.dp))
-        Row {
+        Text(
+            text = formattedDate,
+            modifier = Modifier
+                .padding(vertical = 8.dp)
+                .widthIn(min = 100.dp)
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painter = painterResource(id = R.drawable.ic_condition),
                 contentDescription = null
             )
-            Text(text = "40%", modifier = Modifier.padding(vertical = 8.dp), color = BlueLight)
+            Text(text = "${weather.humidity}%", color = BlueLight)
         }
-        Text(text = "19ºC", modifier = Modifier.padding(vertical = 8.dp))
-        Text(text = "29ºC")
+        Text(text = "${weather.temp.min.roundToInt()}ºC")
+        Text(text = "${weather.temp.max.roundToInt()}ºC")
     }
 }
 
@@ -367,8 +401,8 @@ fun WeatherCardPreview() {
         ) {
             SearchBar()
             WeatherCard()
-            WeatherHourlyCard((1..24).map { WeatherHourly() })
-            WeatherDailyCard((1..7).map { WeatherDaily() })
+//            WeatherHourlyCard((1..24).map { HourlyWeather() })
+//            WeatherDailyCard((1..7).map { DailyWeather() })
         }
     }
 }
