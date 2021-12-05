@@ -1,4 +1,4 @@
-package dev.jx.composeweather
+package dev.jx.composeweather.ui
 
 import android.util.Log
 import androidx.compose.runtime.MutableState
@@ -11,6 +11,7 @@ import com.google.android.libraries.places.api.model.TypeFilter
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.android.libraries.places.api.net.PlacesClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.jx.composeweather.BuildConfig
 import dev.jx.composeweather.data.remote.OpenWeatherService
 import dev.jx.composeweather.data.remote.model.openweather.CurrentWeather
 import dev.jx.composeweather.data.remote.model.openweather.DailyWeather
@@ -30,10 +31,8 @@ class MainActivityViewModel @Inject constructor(
     val query = mutableStateOf("")
     val predictions: MutableState<List<AutocompletePrediction>> = mutableStateOf(listOf())
     val currentlyWeather: MutableState<CurrentWeather> = mutableStateOf(CurrentWeather.default)
-    val hourlyWeather: MutableState<List<HourlyWeather>> =
-        mutableStateOf(listOf(HourlyWeather.default))
-    val dailyWeather: MutableState<List<DailyWeather>> =
-        mutableStateOf(listOf(DailyWeather.default))
+    val hourlyWeather: MutableState<List<HourlyWeather>> = mutableStateOf(HourlyWeather.default)
+    val dailyWeather: MutableState<List<DailyWeather>> = mutableStateOf(DailyWeather.default)
 
     private var token: AutocompleteSessionToken? = null
 

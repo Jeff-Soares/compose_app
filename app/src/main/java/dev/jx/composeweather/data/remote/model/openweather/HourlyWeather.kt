@@ -33,28 +33,30 @@ data class HourlyWeather(
     val rain: Rain
 ) {
     companion object {
-        val default = HourlyWeather(
-            dt = 1637262000,
-            temp = 25.21,
-            feelsLike = 25.59,
-            pressure = 1012,
-            humidity = 69,
-            dew_point = 19.12,
-            uvi = 0.19,
-            clouds = 78,
-            visibility = 10000,
-            windSpeed = 3.78,
-            windDeg = 247,
-            weather = listOf(
-                WeatherH(
-                    id = 500,
-                    main = "Rain",
-                    description = "light rain",
-                    icon = "10d"
-                )
-            ),
-            pop = 0.67,
-            rain = Rain(oneHour = 0.66)
+        val default = listOf(
+            HourlyWeather(
+                dt = 1637262000,
+                temp = 25.21,
+                feelsLike = 25.59,
+                pressure = 1012,
+                humidity = 69,
+                dew_point = 19.12,
+                uvi = 0.19,
+                clouds = 78,
+                visibility = 10000,
+                windSpeed = 3.78,
+                windDeg = 247,
+                weather = listOf(
+                    WeatherH(
+                        id = 500,
+                        main = "Rain",
+                        description = "light rain",
+                        icon = "10d"
+                    )
+                ),
+                pop = 0.67,
+                rain = Rain(oneHour = 0.66)
+            )
         )
     }
 }

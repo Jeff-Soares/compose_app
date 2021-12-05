@@ -11,3 +11,9 @@ val Black = Color(0xFF001219)
 val White = Color(0xFFE4E4E4)
 val Gray = Color(0xFF6d6875)
 val BlueLight = Color(0xFF1AC4E2)
+
+val ShimmerColorShades = listOf(
+    Color.LightGray.copy(0.9f),
+    Color.LightGray.copy(0.2f),
+    Color.LightGray.copy(0.9f)
+)

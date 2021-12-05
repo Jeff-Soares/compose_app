@@ -1,4 +1,4 @@
-package dev.jx.composeweather
+package dev.jx.composeweather.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -50,8 +50,14 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.skydoves.landscapist.glide.GlideImage
 import dagger.hilt.android.AndroidEntryPoint
+import dev.jx.composeweather.R
+import dev.jx.composeweather.data.remote.model.openweather.CurrentWeather
 import dev.jx.composeweather.data.remote.model.openweather.DailyWeather
 import dev.jx.composeweather.data.remote.model.openweather.HourlyWeather
+import dev.jx.composeweather.ui.anim.ShimmerAnimation
+import dev.jx.composeweather.ui.anim.ShimmerWeatherCard
+import dev.jx.composeweather.ui.anim.ShimmerWeatherDailyCard
+import dev.jx.composeweather.ui.anim.ShimmerWeatherHourlyCard
 import dev.jx.composeweather.ui.theme.BlueLight
 import dev.jx.composeweather.ui.theme.ComposeWeatherTheme
 import java.text.SimpleDateFormat
@@ -106,11 +112,12 @@ class MainActivity : ComponentActivity() {
                         .verticalScroll(rememberScrollState())
                 ) {
                     SearchBar()
-                    WeatherCard()
-//                    WeatherHourlyCard((1..24).map { HourlyWeather() })
-//                    WeatherDailyCard((1..7).map { DailyWeather() })
-                    WeatherHourlyCard()
-                    WeatherDailyCard()
+                    if (viewModel.currentlyWeather.value != CurrentWeather.default) WeatherCard()
+                    else ShimmerAnimation { ShimmerWeatherCard(it) }
+                    if (viewModel.hourlyWeather.value != HourlyWeather.default) WeatherHourlyCard()
+                    else ShimmerAnimation { ShimmerWeatherHourlyCard(it) }
+                    if (viewModel.dailyWeather.value != DailyWeather.default) WeatherDailyCard()
+                    else ShimmerAnimation { ShimmerWeatherDailyCard(it) }
                 }
             }
         }

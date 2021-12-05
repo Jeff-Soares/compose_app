@@ -41,44 +41,46 @@ data class DailyWeather(
     val uvi: Double
 ) {
     companion object {
-        val default = DailyWeather(
-            dt = 1637244000,
-            sunrise = 1637222414,
-            moonrise = 1637268420,
-            moonset = 1637220420,
-            moonPhase = 0.48,
-            temp = Temp(
-                day = 30.04,
-                min = 21.45,
-                max = 30.04,
-                night = 21.45,
-                evening = 25.36,
-                morning = 22.2
-            ),
-            feelsLike = FeelsLike(
-                day = 31.43,
-                night = 22.13,
-                evening = 25.67,
-                morning = 22.49
-            ),
-            pressure = 1009,
-            humidity = 52,
-            dewPoint = 18.49,
-            windSpeed = 4.12,
-            windDeg = 194,
-            windGust = 6.62,
-            weather = listOf(
-                WeatherD(
-                    id = 501,
-                    main = "Rain",
-                    description = "moderate rain",
-                    icon = "10d"
-                )
-            ),
-            clouds = 96,
-            pop = 0.98,
-            rain = 6.01,
-            uvi = 13.53
+        val default = listOf(
+            DailyWeather(
+                dt = 1637244000,
+                sunrise = 1637222414,
+                moonrise = 1637268420,
+                moonset = 1637220420,
+                moonPhase = 0.48,
+                temp = Temp(
+                    day = 30.04,
+                    min = 21.45,
+                    max = 30.04,
+                    night = 21.45,
+                    evening = 25.36,
+                    morning = 22.2
+                ),
+                feelsLike = FeelsLike(
+                    day = 31.43,
+                    night = 22.13,
+                    evening = 25.67,
+                    morning = 22.49
+                ),
+                pressure = 1009,
+                humidity = 52,
+                dewPoint = 18.49,
+                windSpeed = 4.12,
+                windDeg = 194,
+                windGust = 6.62,
+                weather = listOf(
+                    WeatherD(
+                        id = 501,
+                        main = "Rain",
+                        description = "moderate rain",
+                        icon = "10d"
+                    )
+                ),
+                clouds = 96,
+                pop = 0.98,
+                rain = 6.01,
+                uvi = 13.53
+            )
         )
     }
 }
