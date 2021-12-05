@@ -3,6 +3,7 @@ package dev.jx.composeweather.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.location.Location
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +15,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,6 +48,9 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModelProvider
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.libraries.places.api.model.AutocompletePrediction
 import com.skydoves.landscapist.glide.GlideImage
@@ -64,6 +69,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
 
+const val DEFAULT_CITY = "Rio de Janeiro"
+
 private lateinit var viewModel: MainActivityViewModel
 private lateinit var permissionsLauncher: ActivityResultLauncher<String>
 private lateinit var geoCoder: Geocoder
@@ -75,25 +82,16 @@ class MainActivity : ComponentActivity() {
 
         viewModel = ViewModelProvider(this).get(MainActivityViewModel::class.java)
 
-        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         geoCoder = Geocoder(this, Locale.getDefault())
 
         permissionsLauncher =
-            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                if (granted) getDefaultWeather()
+                else viewModel.getWeatherInfo(DEFAULT_CITY)
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                if (Geocoder.isPresent()) {
-                    val city = geoCoder.getFromLocation(location.latitude, location.longitude, 1)
-                        .firstOrNull()?.locality
-                    if (city != null) viewModel.getWeatherInfo(city)
-                }
             }
-        } else {
-            permissionsLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-        }
+
+        getDefaultWeather()
 
         setContent {
             ComposeWeatherTheme {
@@ -122,7 +120,44 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun getDefaultWeather() {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        if (ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+
+            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                if (Geocoder.isPresent() && location != null) {
+                    val city = geoCoder.getFromLocation(location.latitude, location.longitude, 1)
+                        .firstOrNull()?.subAdminArea ?: DEFAULT_CITY
+                    viewModel.getWeatherInfo(city)
+
+                } else {
+                    viewModel.getWeatherInfo(DEFAULT_CITY)
+
+                    val locationRequest = LocationRequest.create().apply {
+                        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+                        interval = 5
+                        fastestInterval = 1
+                    }
+
+                    fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+                        override fun onLocationResult(locationResult: LocationResult?) {
+                            locationResult ?: return
+                            getDefaultWeather()
+                            fusedLocationClient.removeLocationUpdates(this)
+                        }
+                    }, null)
+                }
+            }
+        } else permissionsLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+
 }
+
 
 @Composable
 fun SearchBar() {
@@ -305,7 +340,7 @@ fun WeatherHourlyCard() {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            LazyRow() {
+            LazyRow {
                 itemsIndexed(items = hourlyWeather.take(24)) { index, weather ->
                     WeatherHourlyItem(weather, index)
                 }
@@ -351,8 +386,8 @@ fun WeatherDailyCard() {
                 .padding(24.dp)
         ) {
             LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
-                itemsIndexed(items = dailyWeather) { index, weather ->
-                    WeatherDailyItem(weather, index)
+                items(items = dailyWeather) { weather ->
+                    WeatherDailyItem(weather)
                 }
             }
         }
@@ -360,7 +395,7 @@ fun WeatherDailyCard() {
 }
 
 @Composable
-fun WeatherDailyItem(weather: DailyWeather, pos: Int) {
+fun WeatherDailyItem(weather: DailyWeather) {
     val calendar = Calendar.getInstance(Locale.getDefault())
     calendar.timeInMillis = weather.dt * 1000
 
