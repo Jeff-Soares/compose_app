@@ -195,7 +195,7 @@ fun QueryAutoComplete(
     predictions: List<AutocompletePrediction>,
     itemCallback: (AutocompletePrediction) -> Unit
 ) {
-    predictions.forEach { prediction ->
+    predictions.take(3).forEach { prediction ->
         DropdownMenuItem(onClick = { itemCallback(prediction) }) {
             Icon(
                 imageVector = Icons.Filled.LocationOn,
@@ -370,7 +370,7 @@ fun WeatherDailyItem(weather: DailyWeather, pos: Int) {
             text = formattedDate,
             modifier = Modifier
                 .padding(vertical = 8.dp)
-                .widthIn(min = 100.dp)
+                .widthIn(min = 100.dp, max = 100.dp)
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
