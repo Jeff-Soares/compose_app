@@ -35,6 +35,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -252,12 +253,15 @@ fun QueryAutoComplete(
 @Composable
 fun WeatherCard() {
     val currentlyWeather = viewModel.currentlyWeather.value
-    val weatherDescription = currentlyWeather.weather.firstOrNull()?.description?.replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
-    } ?: ""
+    val weatherDescription =
+        currentlyWeather.weather.firstOrNull()?.description?.replaceFirstChar(Char::titlecase) ?: ""
+
     val calendar = Calendar.getInstance()
-    val date = calendar.time
-    val formattedDate = SimpleDateFormat("EE, hh:mm a", Locale.getDefault()).format(date)
+    val formattedDate = if (android.text.format.DateFormat.is24HourFormat(LocalContext.current))
+        SimpleDateFormat("EE, hh:mm", Locale.getDefault()).format(calendar.time)
+            .replaceFirstChar(Char::titlecase) + "h"
+    else
+        SimpleDateFormat("EE, hh:mm a", Locale.getDefault()).format(calendar.time)
 
     Card(
         elevation = 8.dp,
@@ -341,8 +345,8 @@ fun WeatherHourlyCard() {
                 .padding(16.dp)
         ) {
             LazyRow {
-                itemsIndexed(items = hourlyWeather.take(24)) { index, weather ->
-                    WeatherHourlyItem(weather, index)
+                items(items = hourlyWeather.take(24)) { weather ->
+                    WeatherHourlyItem(weather)
                 }
             }
         }
@@ -350,10 +354,13 @@ fun WeatherHourlyCard() {
 }
 
 @Composable
-fun WeatherHourlyItem(weather: HourlyWeather, pos: Int) {
+fun WeatherHourlyItem(weather: HourlyWeather) {
     val hour = Calendar.getInstance()
-    hour.set(Calendar.HOUR_OF_DAY, pos)
-    val hourFormatted = SimpleDateFormat("h a", Locale.getDefault()).format(hour.time)
+    hour.time = Date(weather.dt * 1000)
+    val hourFormatted = if (android.text.format.DateFormat.is24HourFormat(LocalContext.current))
+        SimpleDateFormat("HH", Locale.getDefault()).format(hour.time) + "h"
+    else
+        SimpleDateFormat("h a", Locale.getDefault()).format(hour.time)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -386,8 +393,8 @@ fun WeatherDailyCard() {
                 .padding(24.dp)
         ) {
             LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
-                items(items = dailyWeather) { weather ->
-                    WeatherDailyItem(weather)
+                itemsIndexed(items = dailyWeather) { pos, weather ->
+                    WeatherDailyItem(pos, weather)
                 }
             }
         }
@@ -395,11 +402,12 @@ fun WeatherDailyCard() {
 }
 
 @Composable
-fun WeatherDailyItem(weather: DailyWeather) {
+fun WeatherDailyItem(pos: Int, weather: DailyWeather) {
     val calendar = Calendar.getInstance(Locale.getDefault())
     calendar.timeInMillis = weather.dt * 1000
 
-    val formattedDate = SimpleDateFormat("EEEE", Locale.getDefault()).format(calendar.time)
+    val formattedDate =
+        SimpleDateFormat("EEEE", Locale.getDefault()).format(calendar.time).replaceFirstChar(Char::titlecase)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -409,10 +417,12 @@ fun WeatherDailyItem(weather: DailyWeather) {
             .padding(vertical = 8.dp)
     ) {
         Text(
-            text = formattedDate,
+            text = if (pos == 0) stringResource(R.string.today) else formattedDate,
+            softWrap = false,
+            maxLines = 1,
             modifier = Modifier
                 .padding(vertical = 8.dp)
-                .widthIn(min = 100.dp, max = 100.dp)
+                .widthIn(min = 110.dp, max = 110.dp)
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(

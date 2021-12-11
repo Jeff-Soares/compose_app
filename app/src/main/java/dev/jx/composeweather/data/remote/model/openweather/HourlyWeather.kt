@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class HourlyWeather(
     @SerializedName("dt")
-    val dt: Int,
+    val dt: Long,
     @SerializedName("temp")
     val temp: Double,
     @SerializedName("feels_like")
