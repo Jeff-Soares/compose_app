@@ -12,7 +12,8 @@ interface OpenWeatherService {
     suspend fun getCurrentlyWeather(
         @Query("q") city: String,
         @Query("appid") key: String,
-        @Query("units") units: String = "metric"
+        @Query("units") units: String = "metric",
+        @Query("lang") lang: String = "en"
     ): Response<CurrentWeather>
 
     @GET("onecall")

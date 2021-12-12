@@ -75,6 +75,7 @@ const val DEFAULT_CITY = "Rio de Janeiro"
 private lateinit var viewModel: MainActivityViewModel
 private lateinit var permissionsLauncher: ActivityResultLauncher<String>
 private lateinit var geoCoder: Geocoder
+private lateinit var lang: String
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -84,12 +85,12 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this).get(MainActivityViewModel::class.java)
 
         geoCoder = Geocoder(this, Locale.getDefault())
+        lang = Locale.getDefault().language
 
         permissionsLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
                 if (granted) getDefaultWeather()
-                else viewModel.getWeatherInfo(DEFAULT_CITY)
-
+                else viewModel.getWeatherInfo(DEFAULT_CITY, lang)
             }
 
         getDefaultWeather()
@@ -134,10 +135,10 @@ class MainActivity : ComponentActivity() {
                 if (Geocoder.isPresent() && location != null) {
                     val city = geoCoder.getFromLocation(location.latitude, location.longitude, 1)
                         .firstOrNull()?.subAdminArea ?: DEFAULT_CITY
-                    viewModel.getWeatherInfo(city)
+                    viewModel.getWeatherInfo(city, lang)
 
                 } else {
-                    viewModel.getWeatherInfo(DEFAULT_CITY)
+                    viewModel.getWeatherInfo(DEFAULT_CITY, lang)
 
                     val locationRequest = LocationRequest.create().apply {
                         priority = LocationRequest.PRIORITY_HIGH_ACCURACY
@@ -182,7 +183,7 @@ fun SearchBar() {
     ) {
         TextField(
             value = query.value,
-            label = { Text(text = "City") },
+            label = { Text(text = stringResource(R.string.city)) },
             singleLine = true,
             onValueChange = {
                 query.value = it
@@ -225,7 +226,7 @@ fun SearchBar() {
             properties = PopupProperties(focusable = false)
         ) {
             QueryAutoComplete(predictions = predictions) { prediction ->
-                viewModel.getWeatherInfo(prediction.getPrimaryText(null).toString())
+                viewModel.getWeatherInfo(prediction.getPrimaryText(null).toString(), lang)
                 query.value = ""
                 keyboardControl.clearFocus()
             }
@@ -310,7 +311,8 @@ fun WeatherCard() {
                     colorFilter = ColorFilter.tint(MaterialTheme.colors.secondary)
                 )
                 Text(
-                    text = "${currentlyWeather.main.humidity}% Humidity",
+//                    text = "${currentlyWeather.main.humidity}% Humidity",
+                    text = stringResource(R.string.humidity_percent, currentlyWeather.main.humidity),
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -321,7 +323,8 @@ fun WeatherCard() {
                     colorFilter = ColorFilter.tint(MaterialTheme.colors.secondary)
                 )
                 Text(
-                    text = "${(currentlyWeather.wind.speed * 3.6).roundToInt()} km/h Winds",
+//                    text = "${(currentlyWeather.wind.speed * 3.6).roundToInt()} km/h Winds",
+                    text = stringResource(R.string.winds_velocity, (currentlyWeather.wind.speed * 3.6).roundToInt()),
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }

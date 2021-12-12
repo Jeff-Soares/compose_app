@@ -62,12 +62,13 @@ class MainActivityViewModel @Inject constructor(
         token = null
     }
 
-    fun getWeatherInfo(cityName: String) {
+    fun getWeatherInfo(cityName: String, lang: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val response = openWeatherService.getCurrentlyWeather(
                     city = cityName,
-                    key = BuildConfig.OPEN_WEATHER_API_KEY
+                    key = BuildConfig.OPEN_WEATHER_API_KEY,
+                    lang = if (lang == "pt" || lang == "pt_BR") "pt_br" else "en"
                 )
                 if (response.isSuccessful) {
                     currentlyWeather.value = response.body() ?: throw Throwable("Body is null")

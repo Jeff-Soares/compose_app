@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="city">Cidade</string>
     <string name="today">Hoje</string>
+    <string name="humidity_percent">%d%% Umidade</string>
+    <string name="winds_velocity">%d km/h Vento</string>
 </resources>

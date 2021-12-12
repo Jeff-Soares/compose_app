@@ -1,5 +1,8 @@
 <resources>
     <string name="app_name" translatable="false">ComposeWeather</string>
     <string name="icon_url_2x" translatable="false">https://openweathermap.org/img/wn/%s@2x.png</string>
+    <string name="city">City</string>
     <string name="today">Today</string>
+    <string name="humidity_percent">%d%% Humidity</string>
+    <string name="winds_velocity">%d km/h Winds</string>
 </resources>
