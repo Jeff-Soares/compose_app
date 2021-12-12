@@ -259,7 +259,7 @@ fun WeatherCard() {
 
     val calendar = Calendar.getInstance()
     val formattedDate = if (android.text.format.DateFormat.is24HourFormat(LocalContext.current))
-        SimpleDateFormat("EE, hh:mm", Locale.getDefault()).format(calendar.time)
+        SimpleDateFormat("EE, HH:mm", Locale.getDefault()).format(calendar.time)
             .replaceFirstChar(Char::titlecase) + "h"
     else
         SimpleDateFormat("EE, hh:mm a", Locale.getDefault()).format(calendar.time)
@@ -281,7 +281,7 @@ fun WeatherCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = currentlyWeather.main.temp.roundToInt().toString(), fontSize = 80.sp)
-                Text(text = "ºC", fontSize = 48.sp)
+                Text(text = "°C", fontSize = 48.sp)
 
                 Spacer(modifier = Modifier.weight(1f))
 
@@ -374,7 +374,7 @@ fun WeatherHourlyItem(weather: HourlyWeather) {
             contentDescription = "Weather Condition",
             modifier = Modifier.size(56.dp)
         )
-        Text(text = "${weather.temp.roundToInt()}ºC", modifier = Modifier.padding(vertical = 8.dp))
+        Text(text = "${weather.temp.roundToInt()}°C", modifier = Modifier.padding(vertical = 8.dp))
         Text(text = hourFormatted)
     }
 }
@@ -429,13 +429,15 @@ fun WeatherDailyItem(pos: Int, weather: DailyWeather) {
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-                painter = painterResource(id = R.drawable.ic_condition),
-                contentDescription = null
+                painter = painterResource(id = R.drawable.ic_humidity),
+                contentDescription = "Humidity icon",
+                modifier = Modifier.size(16.dp),
+                colorFilter = ColorFilter.tint(MaterialTheme.colors.secondary)
             )
             Text(text = "${weather.humidity}%", color = BlueLight)
         }
-        Text(text = "${weather.temp.min.roundToInt()}ºC")
-        Text(text = "${weather.temp.max.roundToInt()}ºC")
+        Text(text = "${weather.temp.min.roundToInt()}°C")
+        Text(text = "${weather.temp.max.roundToInt()}°C")
     }
 }
 
